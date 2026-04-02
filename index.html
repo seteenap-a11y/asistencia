@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0a0f1e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>AsistControl — Firebase</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--bg:#060b18;--surface:#0d1526;--surface2:#111d35;--border:#1e2d4d;--accent:#00e5ff;--accent2:#7c3aed;--green:#00ff88;--red:#ff3b5c;--yellow:#ffd60a;--text:#e8f0ff;--text-dim:#6b7fa3;--mono:'Space Mono',monospace;--sans:'Syne',sans-serif;--radius:16px;--glow:0 0 30px rgba(0,229,255,.15)}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;top:-200px;right:-200px;width:600px;height:600px;background:radial-gradient(circle,rgba(124,58,237,.12) 0%,transparent 70%);pointer-events:none;z-index:0}
+.fb-bar{position:fixed;top:0;left:0;right:0;z-index:2000;display:flex;align-items:center;justify-content:center;gap:8px;padding:7px 16px;font-size:11px;font-family:var(--mono);backdrop-filter:blur(12px);transition:all .3s}
+.fb-bar.connecting{background:rgba(255,214,10,.12);color:var(--yellow);border-bottom:1px solid rgba(255,214,10,.2)}
+.fb-bar.connected{background:rgba(0,255,136,.07);color:var(--green);border-bottom:1px solid rgba(0,255,136,.15)}
+.fb-bar.offline{background:rgba(255,59,92,.1);color:var(--red);border-bottom:1px solid rgba(255,59,92,.2)}
+.fb-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.fb-dot.pulse{animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.app{position:relative;z-index:1;max-width:480px;margin:0 auto;padding:54px 16px 80px}
+.header{display:flex;align-items:center;justify-content:space-between;padding:20px 0 16px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.logo-text{font-size:18px;font-weight:800;letter-spacing:-.5px}
+.logo-text span{color:var(--accent)}
+.clock-display{font-family:var(--mono);font-size:13px;color:var(--accent);text-align:right}
+.clock-date{font-size:10px;color:var(--text-dim)}
+.live-badge{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;font-family:var(--mono);color:var(--green);padding:3px 8px;border-radius:10px;background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.2)}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:pulse 1s infinite}
+.nav-tabs{display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border-radius:var(--radius);padding:4px;gap:2px;margin-bottom:20px;border:1px solid var(--border)}
+.nav-tab{padding:10px 4px;border-radius:12px;background:none;border:none;cursor:pointer;color:var(--text-dim);font-family:var(--sans);font-size:11px;font-weight:600;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:4px}
+.nav-tab .icon{font-size:18px}
+.nav-tab.active{background:var(--surface2);color:var(--accent)}
+.nav-tab:hover:not(.active){color:var(--text)}
+.panel{display:none;animation:fadeIn .3s ease}
+.panel.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.section-title{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-bottom:6px}
+.section-sub{font-size:13px;color:var(--text-dim);margin-bottom:20px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.card-title{font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:14px}
+.scanner-wrap{position:relative;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:1;margin-bottom:16px;border:2px solid var(--border)}
+.scanner-wrap.active-scan{border-color:var(--accent);box-shadow:var(--glow)}
+#qr-reader{width:100%!important}
+#qr-reader>div{border:none!important}
+#qr-reader video{border-radius:14px!important}
+#qr-reader img{display:none!important}
+.scanner-overlay{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center}
+.scan-frame{width:200px;height:200px;position:relative}
+.scan-frame::before,.scan-frame::after,.scan-frame .cb,.scan-frame .cl{content:'';position:absolute;width:30px;height:30px;border-color:var(--accent);border-style:solid;opacity:.8}
+.scan-frame::before{top:0;left:0;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
+.scan-frame::after{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
+.scan-frame .cb{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
+.scan-frame .cl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scanMove 2s ease-in-out infinite}
+@keyframes scanMove{0%,100%{top:10%}50%{top:90%}}
+.scanner-ph{width:100%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--surface2);border-radius:14px;border:2px dashed var(--border)}
+.scanner-ph .ph-icon{font-size:64px;opacity:.3}
+.scanner-ph p{font-size:13px;color:var(--text-dim);text-align:center}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;font-family:var(--sans);font-size:14px;font-weight:700;transition:all .2s;letter-spacing:.3px}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#0099bb);color:var(--bg)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,229,255,.3)}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:rgba(255,59,92,.15);color:var(--red);border:1px solid rgba(255,59,92,.3)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+.btn-group{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.mode-selector{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.mode-btn{padding:14px;border-radius:12px;border:2px solid var(--border);background:var(--surface2);cursor:pointer;text-align:center;transition:all .2s;font-family:var(--sans)}
+.mode-btn .mode-icon{font-size:28px;margin-bottom:6px}
+.mode-btn .mode-label{font-size:13px;font-weight:700}
+.mode-btn .mode-sub{font-size:11px;color:var(--text-dim)}
+.mode-btn.entry.selected{border-color:var(--green);background:rgba(0,255,136,.08)}
+.mode-btn.entry.selected .mode-label{color:var(--green)}
+.mode-btn.exit.selected{border-color:var(--red);background:rgba(255,59,92,.08)}
+.mode-btn.exit.selected .mode-label{color:var(--red)}
+.status-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.5px}
+.badge-ok{background:rgba(0,255,136,.12);color:var(--green);border:1px solid rgba(0,255,136,.3)}
+.badge-late{background:rgba(255,214,10,.12);color:var(--yellow);border:1px solid rgba(255,214,10,.3)}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.notification{position:fixed;top:50px;left:50%;transform:translateX(-50%) translateY(-120px);background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 20px;display:flex;align-items:center;gap:14px;min-width:300px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,.5);transition:transform .4s cubic-bezier(.34,1.56,.64,1);z-index:9999}
+.notification.show{transform:translateX(-50%) translateY(0)}
+.notification.success{border-color:var(--green)}
+.notification.error{border-color:var(--red)}
+.notif-icon{font-size:28px}
+.notif-title{font-size:14px;font-weight:700;margin-bottom:2px}
+.notif-sub{font-size:12px;color:var(--text-dim)}
+.records-list{display:flex;flex-direction:column;gap:10px}
+.record-item{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px;position:relative;overflow:hidden;animation:fadeIn .3s ease}
+.record-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.record-item.entry::before{background:var(--green)}
+.record-item.exit::before{background:var(--red)}
+.record-item.complete::before{background:var(--accent)}
+.record-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.record-name{font-size:14px;font-weight:700}
+.record-time{font-family:var(--mono);font-size:13px;color:var(--accent)}
+.record-details{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.record-detail{font-size:11px;color:var(--text-dim)}
+.record-detail span{color:var(--text);font-weight:600}
+.form-group{margin-bottom:14px}
+.form-label{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;display:block}
+.form-input{width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--sans);font-size:14px;transition:border-color .2s;outline:none}
+.form-input:focus{border-color:var(--accent)}
+.form-input::placeholder{color:var(--text-dim)}
+.form-select{width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;cursor:pointer;-webkit-appearance:none}
+.form-select:focus{border-color:var(--accent)}
+.employee-item{display:flex;align-items:center;gap:14px;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;animation:fadeIn .3s ease}
+.employee-avatar{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent2),var(--accent));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0;color:#fff}
+.employee-info{flex:1;min-width:0}
+.employee-name{font-size:14px;font-weight:700;margin-bottom:2px}
+.employee-id{font-family:var(--mono);font-size:11px;color:var(--text-dim)}
+.employee-role{font-size:11px;color:var(--text-dim)}
+.employee-actions{display:flex;gap:6px}
+.icon-btn{width:34px;height:34px;border-radius:8px;background:var(--surface);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all .2s;color:var(--text-dim)}
+.icon-btn:hover{border-color:var(--accent);color:var(--accent)}
+.qr-container{display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px;background:#fff;border-radius:16px;margin:16px 0}
+.qr-label{font-size:12px;color:#333;font-weight:700;text-align:center;margin-top:4px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:16px}
+.stat-value{font-size:28px;font-weight:800;font-family:var(--mono);color:var(--accent)}
+.stat-label{font-size:11px;color:var(--text-dim);margin-top:4px;font-weight:600}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:flex-end;justify-content:center;z-index:1000;opacity:0;pointer-events:none;transition:opacity .3s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:24px 24px 0 0;padding:24px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;transform:translateY(100%);transition:transform .4s cubic-bezier(.34,1.2,.64,1)}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px}
+.modal-title{font-size:20px;font-weight:800;margin-bottom:20px}
+.schedule-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)}
+.schedule-row:last-child{border-bottom:none}
+.schedule-label{font-size:13px;color:var(--text-dim)}
+.schedule-time{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent)}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-dim)}
+.empty-state .es-icon{font-size:48px;margin-bottom:12px}
+.empty-state p{font-size:14px}
+.config-status{display:flex;align-items:center;gap:8px;font-size:12px;padding:8px 12px;border-radius:8px;margin-bottom:14px}
+.config-status.connected{background:rgba(0,255,136,.1);color:var(--green);border:1px solid rgba(0,255,136,.2)}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* ── LOGIN ─────────────────────────────────────────────────── */
+.login-overlay{position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;transition:opacity .5s ease,visibility .5s ease}
+.login-overlay.hidden{opacity:0;visibility:hidden;pointer-events:none}
+.login-card{width:100%;max-width:380px;background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:36px 28px;position:relative;overflow:hidden}
+.login-card::before{content:'';position:absolute;top:-80px;right:-80px;width:220px;height:220px;background:radial-gradient(circle,rgba(0,229,255,.12) 0%,transparent 70%);pointer-events:none}
+.login-card::after{content:'';position:absolute;bottom:-60px;left:-60px;width:180px;height:180px;background:radial-gradient(circle,rgba(124,58,237,.1) 0%,transparent 70%);pointer-events:none}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.login-logo-icon{width:44px;height:44px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.login-logo-text{font-size:22px;font-weight:800;letter-spacing:-.5px}
+.login-logo-text span{color:var(--accent)}
+.login-sub{font-size:12px;color:var(--text-dim);font-family:var(--mono);margin-bottom:26px}
+.login-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;display:block}
+.login-input-wrap{position:relative;margin-bottom:14px}
+.login-input{width:100%;padding:13px 44px 13px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:var(--sans);font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s}
+.login-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,255,.08)}
+.login-input::placeholder{color:var(--text-dim)}
+.login-input.err{border-color:var(--red)!important;box-shadow:0 0 0 3px rgba(255,59,92,.08)!important}
+.login-eye{position:absolute;right:13px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:17px;line-height:1;padding:0;transition:color .2s}
+.login-eye:hover{color:var(--accent)}
+.login-remember{display:flex;align-items:center;gap:8px;margin-bottom:18px;cursor:pointer;user-select:none}
+.login-remember input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+.login-remember span{font-size:12px;color:var(--text-dim)}
+.login-btn{width:100%;padding:15px;border-radius:12px;border:none;cursor:pointer;font-family:var(--sans);font-size:15px;font-weight:700;background:linear-gradient(135deg,var(--accent),#0099bb);color:var(--bg);letter-spacing:.3px;transition:all .2s}
+.login-btn:hover{transform:translateY(-1px);box-shadow:0 8px 28px rgba(0,229,255,.3)}
+.login-btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
+.login-alert{background:rgba(255,59,92,.1);border:1px solid rgba(255,59,92,.25);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--red);margin-bottom:14px;display:none;align-items:center;gap:8px}
+.login-alert.show{display:flex}
+.login-footer{text-align:center;font-size:10px;color:var(--border);margin-top:20px;font-family:var(--mono)}
+.login-shake{animation:lShake .4s ease}
+@keyframes lShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+.filter-row{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px}
+.filter-chip{padding:6px 12px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;color:var(--text-dim);white-space:nowrap}
+.filter-chip.active{background:rgba(0,229,255,.1);border-color:var(--accent);color:var(--accent)}
+.divider{height:1px;background:var(--border);margin:16px 0}
+.text-accent{color:var(--accent)}.text-green{color:var(--green)}.text-red{color:var(--red)}.text-yellow{color:var(--yellow)}.text-dim{color:var(--text-dim)}.font-mono{font-family:var(--mono)}.fw-bold{font-weight:700}.mt-8{margin-top:8px}
+.skeleton{background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px;height:70px;margin-bottom:10px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card" id="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">📋</div>
+      <div class="login-logo-text">Asist<span>Control</span></div>
+    </div>
+    <div class="login-sub">🔒 Acceso restringido · Firebase v3.0</div>
+    <div class="login-alert" id="login-alert"><span>⚠️</span><span id="login-alert-msg"></span></div>
+    <label class="login-label">Usuario</label>
+    <div class="login-input-wrap">
+      <input class="login-input" id="lu" type="text" placeholder="Usuario"
+        autocomplete="username" onkeydown="if(event.key==='Enter')document.getElementById('lp').focus()"/>
+    </div>
+    <label class="login-label">Contraseña</label>
+    <div class="login-input-wrap">
+      <input class="login-input" id="lp" type="password" placeholder="••••••••"
+        autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+      <button class="login-eye" id="leye" onclick="togglePass()" tabindex="-1">👁️</button>
+    </div>
+    <label class="login-remember">
+      <input type="checkbox" id="lrem"/>
+      <span>Recordar sesión en este dispositivo</span>
+    </label>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Ingresar al Sistema</button>
+    <div class="login-footer">AsistControl · Solo personal autorizado</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCRIPT DE LOGIN — script normal (no módulo)
+     Firebase se inicia SOLO después del login exitoso
+     Para cambiar credenciales: edita el objeto USERS
+     ═══════════════════════════════════════════════ -->
+<script>
+// ── CREDENCIALES ─────────────────────────────────────────────
+// Agrega o cambia usuarios aquí: "usuario": "contraseña"
+const USERS = {
+  "admin":      "asist2024",
+  "supervisor": "control99"
+};
+const SK = "asistcontrol_v1";
+
+// ── Verificar sesión guardada ─────────────────────────────────
+// Si hay sesión activa, ocultar login de inmediato (Firebase inicia normal)
+(function(){
+  if(localStorage.getItem(SK)==="ok"||sessionStorage.getItem(SK)==="ok"){
+    document.getElementById("login-overlay").classList.add("hidden");
+  }
+})();
+
+function doLogin(){
+  const u   = document.getElementById("lu").value.trim().toLowerCase();
+  const p   = document.getElementById("lp").value;
+  const rem = document.getElementById("lrem").checked;
+  const btn = document.getElementById("login-btn");
+  const al  = document.getElementById("login-alert");
+
+  // Limpiar errores
+  al.classList.remove("show");
+  document.getElementById("lu").classList.remove("err");
+  document.getElementById("lp").classList.remove("err");
+
+  if(!u || !p){
+    showAlert("Ingresa usuario y contraseña");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Verificando...";
+
+  setTimeout(()=>{
+    if(USERS[u] !== undefined && USERS[u] === p){
+      // ✅ Login correcto — guardar sesión
+      if(rem) localStorage.setItem(SK,"ok");
+      else    sessionStorage.setItem(SK,"ok");
+
+      btn.textContent = "✅ Acceso concedido";
+
+      // Ocultar overlay y DEJAR que Firebase (módulo) siga ejecutándose
+      setTimeout(()=>{
+        document.getElementById("login-overlay").classList.add("hidden");
+      }, 500);
+
+    } else {
+      // ❌ Error
+      showAlert("Usuario o contraseña incorrectos");
+      document.getElementById("lu").classList.add("err");
+      document.getElementById("lp").classList.add("err");
+      document.getElementById("lp").value = "";
+      document.getElementById("login-card").classList.add("login-shake");
+      setTimeout(()=>document.getElementById("login-card").classList.remove("login-shake"),450);
+      btn.disabled = false;
+      btn.textContent = "Ingresar al Sistema";
+    }
+  }, 400);
+}
+
+function showAlert(msg){
+  document.getElementById("login-alert-msg").textContent = msg;
+  document.getElementById("login-alert").classList.add("show");
+}
+
+function togglePass(){
+  const inp = document.getElementById("lp");
+  const eye = document.getElementById("leye");
+  inp.type = inp.type==="password" ? "text" : "password";
+  eye.textContent = inp.type==="password" ? "👁️" : "🙈";
+}
+
+// Enfocar usuario al cargar si no hay sesión
+window.addEventListener("load",()=>{
+  if(!document.getElementById("login-overlay").classList.contains("hidden"))
+    setTimeout(()=>document.getElementById("lu").focus(),150);
+});
+</script>
+
+  <div class="fb-dot pulse" id="fb-dot"></div>
+  <span id="fb-text">Conectando con Firebase...</span>
+</div>
+
+<div class="notification" id="notification">
+  <div class="notif-icon" id="notif-icon"></div>
+  <div><div class="notif-title" id="notif-title"></div><div class="notif-sub" id="notif-sub"></div></div>
+</div>
+
+<!-- MODAL: QR -->
+<div class="modal-overlay" id="qr-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Código QR del Empleado</div>
+    <div id="modal-qr-content"></div>
+    <button class="btn btn-secondary" onclick="closeModal('qr-modal')" style="margin-top:8px">Cerrar</button>
+  </div>
+</div>
+
+<!-- MODAL: Empleado -->
+<div class="modal-overlay" id="emp-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="emp-modal-title">Nuevo Empleado</div>
+    <div class="form-group"><label class="form-label">Nombre completo</label><input class="form-input" id="emp-name" placeholder="Ej. María González"></div>
+    <div class="form-group"><label class="form-label">ID de empleado</label><input class="form-input" id="emp-id" placeholder="Ej. EMP-001"></div>
+    <div class="form-group"><label class="form-label">Cargo / Departamento</label><input class="form-input" id="emp-role" placeholder="Ej. Operario, Técnico"></div>
+    <div class="form-group"><label class="form-label">Correo electrónico</label><input class="form-input" id="emp-email" placeholder="correo@empresa.com" type="email"></div>
+    <button class="btn btn-primary" onclick="saveEmployee()" style="margin-top:8px"><span>🔥</span>Guardar en Firebase</button>
+    <button class="btn btn-secondary" onclick="closeModal('emp-modal')" style="margin-top:8px">Cancelar</button>
+  </div>
+</div>
+
+<!-- MODAL: Config -->
+<div class="modal-overlay" id="config-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⚙️ Configuración</div>
+    <div class="card">
+      <div class="card-title">🔥 Firebase Firestore</div>
+      <div class="config-status connected"><span>🟢</span> Proyecto: control-de-asistencia-d5e06</div>
+      <p style="font-size:12px;color:var(--text-dim)">Sincronización en tiempo real activa en todos los dispositivos conectados.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Email RR.HH.</div>
+      <div class="form-group"><label class="form-label">Correo de Recursos Humanos</label><input class="form-input" id="hr-email" placeholder="rrhh@empresa.com" type="email"></div>
+      <button class="btn btn-secondary" onclick="saveHREmail()"><span>💾</span>Guardar en Firebase</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Horario</div>
+      <div class="schedule-row"><span class="schedule-label">🟢 Entrada</span><span class="schedule-time">07:00 AM</span></div>
+      <div class="schedule-row"><span class="schedule-label">🍽️ Almuerzo</span><span class="schedule-time">12:00 – 14:00</span></div>
+      <div class="schedule-row"><span class="schedule-label">🔴 Salida</span><span class="schedule-time">05:00 PM</span></div>
+      <div class="schedule-row"><span class="schedule-label">⏱️ Efectivas</span><span class="schedule-time">8 horas</span></div>
+    </div>
+    <button class="btn btn-secondary" onclick="closeModal('config-modal')" style="margin-top:8px">Cerrar</button>
+  </div>
+</div>
+
+<div class="app">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">📋</div>
+      <div>
+        <div class="logo-text">Asist<span>Control</span></div>
+        <div style="font-size:10px;color:var(--text-dim);font-family:var(--mono)">🔥 Firebase v3.0</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="live-badge" id="live-badge" style="display:none"><div class="live-dot"></div>EN VIVO</div>
+      <div class="clock-display">
+        <div id="live-time">00:00:00</div>
+        <div class="clock-date" id="live-date"></div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('scanner')" id="tab-scanner"><span class="icon">📷</span>Escanear</button>
+    <button class="nav-tab" onclick="switchTab('records')"   id="tab-records"><span class="icon">📊</span>Registros</button>
+    <button class="nav-tab" onclick="switchTab('employees')" id="tab-employees"><span class="icon">👥</span>Empleados</button>
+    <button class="nav-tab" onclick="switchTab('reports')"   id="tab-reports"><span class="icon">📈</span>Reportes</button>
+  </nav>
+
+  <!-- SCANNER -->
+  <div class="panel active" id="panel-scanner">
+    <div class="section-title">Registro de Asistencia</div>
+    <p class="section-sub">Selecciona el tipo y escanea el código QR</p>
+    <div class="mode-selector">
+      <div class="mode-btn entry selected" onclick="selectMode('entry')" id="mode-entry"><div class="mode-icon">🟢</div><div class="mode-label">ENTRADA</div><div class="mode-sub">Inicio de jornada</div></div>
+      <div class="mode-btn exit" onclick="selectMode('exit')" id="mode-exit"><div class="mode-icon">🔴</div><div class="mode-label">SALIDA</div><div class="mode-sub">Fin de jornada</div></div>
+    </div>
+    <div class="scanner-wrap" id="scanner-wrap">
+      <div class="scanner-ph" id="scanner-ph"><div class="ph-icon">📸</div><p>Presiona "Iniciar Escáner"<br>para activar la cámara</p></div>
+      <div id="qr-reader" style="display:none"></div>
+      <div class="scanner-overlay" id="scanner-overlay" style="display:none"><div class="scan-frame"><div class="cb"></div><div class="cl"></div><div class="scan-line"></div></div></div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btn-start" onclick="startScanner()"><span>📷</span>Iniciar Escáner</button>
+      <button class="btn btn-danger"  id="btn-stop"  onclick="stopScanner()" style="display:none"><span>⏹️</span>Detener</button>
+    </div>
+    <div class="card" id="last-scan-card" style="display:none">
+      <div class="card-title">✅ Último registro — guardado en Firebase</div>
+      <div id="last-scan-content"></div>
+    </div>
+    <button class="btn btn-secondary" onclick="openModal('config-modal')" style="margin-top:8px"><span>⚙️</span>Configuración</button>
+  </div>
+
+  <!-- RECORDS -->
+  <div class="panel" id="panel-records">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div class="section-title">Registros</div>
+      <div class="live-badge"><div class="live-dot"></div>TIEMPO REAL</div>
+    </div>
+    <p class="section-sub" id="records-date-label"></p>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value" id="stat-present">—</div><div class="stat-label">Presentes hoy</div></div>
+      <div class="stat-card"><div class="stat-value" id="stat-late">—</div><div class="stat-label">Con tardanza</div></div>
+    </div>
+    <div class="filter-row">
+      <div class="filter-chip active" onclick="filterRecords('all',this)">Todos</div>
+      <div class="filter-chip" onclick="filterRecords('entry',this)">Entrada</div>
+      <div class="filter-chip" onclick="filterRecords('exit',this)">Salida</div>
+      <div class="filter-chip" onclick="filterRecords('complete',this)">Completos</div>
+    </div>
+    <div class="records-list" id="records-list"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+    <div class="divider"></div>
+    <button class="btn btn-secondary" onclick="exportToEmail()"><span>📧</span>Enviar reporte a RR.HH.</button>
+  </div>
+
+  <!-- EMPLOYEES -->
+  <div class="panel" id="panel-employees">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div class="section-title">Empleados</div>
+      <div class="live-badge"><div class="live-dot"></div>TIEMPO REAL</div>
+    </div>
+    <p class="section-sub">Directorio sincronizado con Firebase</p>
+    <button class="btn btn-primary" onclick="openAddEmployee()" style="margin-bottom:16px"><span>➕</span>Agregar Empleado</button>
+    <div id="employee-list"><div class="skeleton"></div><div class="skeleton"></div></div>
+  </div>
+
+  <!-- REPORTS -->
+  <div class="panel" id="panel-reports">
+    <div class="section-title">Reportes</div>
+    <p class="section-sub">Datos en tiempo real desde Firebase</p>
+    <div class="card">
+      <div class="card-title">Generar Reporte</div>
+      <div class="form-group">
+        <label class="form-label">Tipo</label>
+        <select class="form-select" id="report-type">
+          <option value="today">Hoy</option>
+          <option value="week">Esta semana</option>
+          <option value="month">Este mes</option>
+          <option value="custom">Rango personalizado</option>
+        </select>
+      </div>
+      <div id="date-range-group" style="display:none">
+        <div class="form-group"><label class="form-label">Desde</label><input class="form-input" id="date-from" type="date"></div>
+        <div class="form-group"><label class="form-label">Hasta</label><input class="form-input" id="date-to" type="date"></div>
+      </div>
+      <button class="btn btn-primary" onclick="generateReport()"><span>📊</span>Generar desde Firebase</button>
+    </div>
+    <div id="report-output"></div>
+    <div class="card">
+      <div class="card-title">Exportar</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-secondary" onclick="exportCSV()"><span>📄</span>Descargar CSV completo</button>
+        <button class="btn btn-secondary" onclick="exportToEmail()"><span>📧</span>Enviar por correo a RR.HH.</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     FIREBASE SDK MODULAR — carga como módulo ES
+     Funciona desde cualquier servidor (GitHub Pages, etc.)
+     ═══════════════════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp }            from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc,
+         onSnapshot, query, where, orderBy, serverTimestamp,
+         enableNetwork, disableNetwork }
+  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+// ── CONFIG ────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey:            "AIzaSyCqQL4DzNsA3TMH75O9Th_2oXeb4zv4Wio",
+  authDomain:        "control-de-asistencia-d5e06.firebaseapp.com",
+  projectId:         "control-de-asistencia-d5e06",
+  storageBucket:     "control-de-asistencia-d5e06.firebasestorage.app",
+  messagingSenderId: "806719553888",
+  appId:             "1:806719553888:web:6ae472bbb0b45638cf9e05"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+const C_EMP  = 'empleados';
+const C_REC  = 'registros';
+const C_CONF = 'configuracion';
+
+// ── STATE ─────────────────────────────────────────────────
+let employees     = [];
+let records       = [];
+let cfg           = { hrEmail: '' };
+let currentMode   = 'entry';
+let scannerActive = false;
+let html5QrCode   = null;
+let editingEmpId  = null;
+let currentFilter = 'all';
+let unsubEmp      = null;
+let unsubRec      = null;
+
+// ── Exponer funciones al HTML (onclick) ───────────────────
+window.switchTab        = switchTab;
+window.selectMode       = selectMode;
+window.startScanner     = startScanner;
+window.stopScanner      = stopScanner;
+window.filterRecords    = filterRecords;
+window.openAddEmployee  = openAddEmployee;
+window.editEmployee     = editEmployee;
+window.saveEmployee     = saveEmployee;
+window.deleteEmployee   = deleteEmployee;
+window.showQR           = showQR;
+window.downloadQR       = downloadQR;
+window.generateReport   = generateReport;
+window.exportCSV        = exportCSV;
+window.exportToEmail    = exportToEmail;
+window.saveHREmail      = saveHREmail;
+window.openModal        = openModal;
+window.closeModal       = closeModal;
+
+// ── FIREBASE STATUS ───────────────────────────────────────
+function setFbStatus(s) {
+  const bar  = document.getElementById('fb-bar');
+  const dot  = document.getElementById('fb-dot');
+  const text = document.getElementById('fb-text');
+  const live = document.getElementById('live-badge');
+  bar.className  = 'fb-bar ' + s;
+  dot.className  = 'fb-dot' + (s === 'connecting' ? ' pulse' : '');
+  if (s === 'connected') {
+    text.textContent = '🔥 Firebase Firestore — Sincronización en tiempo real activa';
+    if (live) live.style.display = 'flex';
+  } else if (s === 'offline') {
+    text.textContent = '⚠️ Sin conexión — operando en modo caché';
+    if (live) live.style.display = 'none';
+  } else {
+    text.textContent = 'Conectando con Firebase...';
+  }
+}
+
+window.addEventListener('online',  () => { enableNetwork(db);  setFbStatus('connected'); });
+window.addEventListener('offline', () => { disableNetwork(db); setFbStatus('offline'); });
+
+// ── INIT ──────────────────────────────────────────────────
+updateClock();
+setInterval(updateClock, 1000);
+await loadConfig();
+subscribeEmployees();
+subscribeRecords();
+document.getElementById('report-type').addEventListener('change', function () {
+  document.getElementById('date-range-group').style.display = this.value === 'custom' ? 'block' : 'none';
+});
+document.querySelectorAll('.modal-overlay').forEach(o =>
+  o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); })
+);
+
+// ── CLOCK ─────────────────────────────────────────────────
+function updateClock() {
+  const n = new Date();
+  document.getElementById('live-time').textContent =
+    [n.getHours(), n.getMinutes(), n.getSeconds()].map(v => String(v).padStart(2, '0')).join(':');
+  document.getElementById('live-date').textContent =
+    n.toLocaleDateString('es-EC', { weekday: 'short', day: 'numeric', month: 'short' });
+  document.getElementById('records-date-label').textContent =
+    n.toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// ── TABS ──────────────────────────────────────────────────
+function switchTab(t) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + t).classList.add('active');
+  document.getElementById('tab-' + t).classList.add('active');
+  if (t !== 'scanner' && scannerActive) stopScanner();
+}
+
+function selectMode(m) {
+  currentMode = m;
+  document.getElementById('mode-entry').classList.toggle('selected', m === 'entry');
+  document.getElementById('mode-exit').classList.toggle('selected',  m === 'exit');
+}
+
+// ── SCANNER ───────────────────────────────────────────────
+function startScanner() {
+  document.getElementById('scanner-ph').style.display      = 'none';
+  document.getElementById('qr-reader').style.display       = 'block';
+  document.getElementById('scanner-overlay').style.display = 'flex';
+  document.getElementById('btn-start').style.display       = 'none';
+  document.getElementById('btn-stop').style.display        = 'flex';
+  document.getElementById('scanner-wrap').classList.add('active-scan');
+  html5QrCode = new Html5Qrcode('qr-reader');
+  html5QrCode.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 220, height: 220 } },
+    onQRScanned, () => {}
+  ).catch(() => {
+    showNotif('error', '❌', 'Error de cámara', 'No se pudo acceder a la cámara');
+    stopScanner();
+  });
+  scannerActive = true;
+}
+
+function stopScanner() {
+  if (html5QrCode && scannerActive) html5QrCode.stop().then(() => html5QrCode.clear()).catch(() => {});
+  scannerActive = false;
+  document.getElementById('scanner-ph').style.display      = 'flex';
+  document.getElementById('qr-reader').style.display       = 'none';
+  document.getElementById('scanner-overlay').style.display = 'none';
+  document.getElementById('btn-start').style.display       = 'flex';
+  document.getElementById('btn-stop').style.display        = 'none';
+  document.getElementById('scanner-wrap').classList.remove('active-scan');
+}
+
+function onQRScanned(data) {
+  stopScanner();
+  let empId = data;
+  try { const p = JSON.parse(data); empId = p.id || data; } catch {}
+  processAttendance(empId);
+}
+
+// ── ATTENDANCE ────────────────────────────────────────────
+async function processAttendance(empId) {
+  const emp = employees.find(e => e.id === empId);
+  if (!emp) { showNotif('error', '❌', 'QR no reconocido', 'ID: ' + empId); return; }
+  const now      = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const timeStr  = now.toTimeString().split(' ')[0];
+  const docRef   = doc(db, C_REC, `${emp.id}_${todayStr}`);
+  try {
+    const snap = await getDoc(docRef);
+    if (currentMode === 'entry') {
+      if (snap.exists() && snap.data().entryTime) {
+        showNotif('error', '⚠️', 'Ya registrado', `${emp.name} · ${snap.data().entryTime}`); return;
+      }
+      const status = getStatus(now);
+      await setDoc(docRef, {
+        empId: emp.id, empName: emp.name, empEmail: emp.email || '', empRole: emp.role || '',
+        date: todayStr, entryTime: timeStr, exitTime: '', hoursWorked: '', status,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      showNotif('success', '✅', `Entrada — ${status}`, `${emp.name} · ${timeStr}`);
+      showLastScan(emp, { entryTime: timeStr, exitTime: '', hoursWorked: '', status });
+    } else {
+      if (!snap.exists() || !snap.data().entryTime) {
+        showNotif('error', '⚠️', 'Sin entrada hoy', `${emp.name} no ha fichado entrada`); return;
+      }
+      if (snap.data().exitTime) {
+        showNotif('error', '⚠️', 'Salida ya registrada', `${emp.name} · ${snap.data().exitTime}`); return;
+      }
+      const hw = calcHours(snap.data().entryTime, timeStr);
+      await setDoc(docRef, { exitTime: timeStr, hoursWorked: hw, updatedAt: serverTimestamp() }, { merge: true });
+      showNotif('success', '🎉', 'Salida registrada', `${emp.name} · ${hw} trabajadas`);
+      showLastScan(emp, { ...snap.data(), exitTime: timeStr, hoursWorked: hw });
+    }
+  } catch (e) { showNotif('error', '🔥', 'Error Firebase', e.message); console.error(e); }
+}
+
+function getStatus(dt) {
+  return (dt.getHours() * 60 + dt.getMinutes()) <= (7 * 60 + 10) ? 'A tiempo' : 'Tardanza';
+}
+
+function calcHours(entry, exit) {
+  const [eh, em] = entry.split(':').map(Number);
+  const [xh, xm] = exit.split(':').map(Number);
+  let mins = (xh * 60 + xm) - (eh * 60 + em);
+  const ls = 12 * 60, le = 14 * 60, et = eh * 60 + em, xt = xh * 60 + xm;
+  if (et < le && xt > ls) { const ov = Math.min(xt, le) - Math.max(et, ls); if (ov > 0) mins -= ov; }
+  if (mins < 0) mins = 0;
+  return `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, '0')}m`;
+}
+
+function showLastScan(emp, rec) {
+  document.getElementById('last-scan-card').style.display = 'block';
+  const sc = rec.status === 'A tiempo' ? 'badge-ok' : 'badge-late';
+  document.getElementById('last-scan-content').innerHTML = `
+    <div class="record-header">
+      <span class="record-name">${emp.name}</span>
+      <span class="record-time">${rec.entryTime || rec.exitTime || '--'}</span>
+    </div>
+    <div class="record-details">
+      <div class="record-detail">ID: <span>${emp.id}</span></div>
+      <div class="record-detail">Estado: <span class="status-badge ${sc}"><span class="dot"></span>${rec.status || '-'}</span></div>
+      <div class="record-detail">Entrada: <span>${rec.entryTime || '—'}</span></div>
+      <div class="record-detail">Salida: <span>${rec.exitTime || '—'}</span></div>
+      ${rec.hoursWorked ? `<div class="record-detail">Horas: <span class="text-green fw-bold">${rec.hoursWorked}</span></div>` : ''}
+    </div>`;
+}
+
+// ── LISTENERS TIEMPO REAL ─────────────────────────────────
+function subscribeEmployees() {
+  if (unsubEmp) unsubEmp();
+  const q = query(collection(db, C_EMP), orderBy('name'));
+  unsubEmp = onSnapshot(q, snap => {
+    employees = snap.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+    renderEmployees();
+    setFbStatus('connected');
+  }, () => {
+    // fallback sin orderBy
+    unsubEmp = onSnapshot(collection(db, C_EMP), snap => {
+      employees = snap.docs.map(d => ({ firestoreId: d.id, ...d.data() }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      renderEmployees(); setFbStatus('connected');
+    }, err => { console.error(err); setFbStatus('offline'); });
+  });
+}
+
+function subscribeRecords() {
+  if (unsubRec) unsubRec();
+  const today = new Date().toISOString().split('T')[0];
+  const q = query(collection(db, C_REC), where('date', '==', today));
+  unsubRec = onSnapshot(q, snap => {
+    records = snap.docs.map(d => ({ firestoreId: d.id, ...d.data() }));
+    records.sort((a, b) => (a.entryTime || '').localeCompare(b.entryTime || ''));
+    renderRecords(currentFilter);
+    updateStats();
+    setFbStatus('connected');
+  }, err => { console.error(err); setFbStatus('offline'); });
+}
+
+// ── RENDER ────────────────────────────────────────────────
+function renderRecords(f = 'all') {
+  currentFilter = f;
+  let list = [...records];
+  if (f === 'entry')    list = list.filter(r => r.entryTime && !r.exitTime);
+  if (f === 'exit')     list = list.filter(r => r.exitTime  && !r.entryTime);
+  if (f === 'complete') list = list.filter(r => r.entryTime &&  r.exitTime);
+  const el = document.getElementById('records-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="es-icon">📋</div><p>Sin registros${f !== 'all' ? ' con este filtro' : ' hoy'}.</p></div>`;
+    return;
+  }
+  el.innerHTML = list.map(r => {
+    const sc   = r.status === 'A tiempo' ? 'badge-ok' : 'badge-late';
+    const type = r.entryTime && r.exitTime ? 'complete' : (r.entryTime ? 'entry' : 'exit');
+    return `<div class="record-item ${type}">
+      <div class="record-header"><span class="record-name">${r.empName}</span><span class="record-time">${r.entryTime || r.exitTime || '--'}</span></div>
+      <div class="record-details">
+        <div class="record-detail">ID: <span>${r.empId}</span></div>
+        <div class="record-detail">Estado: <span class="status-badge ${sc}"><span class="dot"></span>${r.status || '-'}</span></div>
+        <div class="record-detail">Entrada: <span>${r.entryTime || '—'}</span></div>
+        <div class="record-detail">Salida: <span>${r.exitTime || '—'}</span></div>
+        ${r.hoursWorked ? `<div class="record-detail">Horas: <span class="text-green fw-bold">${r.hoursWorked}</span></div>` : ''}
+      </div></div>`;
+  }).join('');
+}
+
+function filterRecords(f, el) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active'); renderRecords(f);
+}
+
+function updateStats() {
+  document.getElementById('stat-present').textContent = records.filter(r => r.entryTime).length;
+  document.getElementById('stat-late').textContent    = records.filter(r => r.status === 'Tardanza').length;
+}
+
+function renderEmployees() {
+  const el = document.getElementById('employee-list');
+  if (!employees.length) {
+    el.innerHTML = `<div class="empty-state"><div class="es-icon">👥</div><p>No hay empleados.<br>Agrega el primero.</p></div>`;
+    return;
+  }
+  el.innerHTML = employees.map(e => `
+    <div class="employee-item">
+      <div class="employee-avatar">${e.name.charAt(0).toUpperCase()}</div>
+      <div class="employee-info">
+        <div class="employee-name">${e.name}</div>
+        <div class="employee-id">${e.id}</div>
+        <div class="employee-role">${e.role || 'Sin cargo'}</div>
+      </div>
+      <div class="employee-actions">
+        <div class="icon-btn" onclick="showQR('${e.id}')" title="Ver QR">📱</div>
+        <div class="icon-btn" onclick="editEmployee('${e.id}')" title="Editar">✏️</div>
+        <div class="icon-btn" onclick="deleteEmployee('${e.firestoreId}')" title="Eliminar" style="color:var(--red)">🗑️</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── EMPLOYEES CRUD ────────────────────────────────────────
+function openAddEmployee() {
+  editingEmpId = null;
+  document.getElementById('emp-modal-title').textContent = 'Nuevo Empleado';
+  document.getElementById('emp-name').value  = '';
+  document.getElementById('emp-id').value    = 'EMP-' + String(employees.length + 1).padStart(3, '0');
+  document.getElementById('emp-role').value  = '';
+  document.getElementById('emp-email').value = '';
+  openModal('emp-modal');
+}
+
+function editEmployee(empId) {
+  const e = employees.find(x => x.id === empId); if (!e) return;
+  editingEmpId = e.id;
+  document.getElementById('emp-modal-title').textContent = 'Editar Empleado';
+  document.getElementById('emp-name').value  = e.name;
+  document.getElementById('emp-id').value    = e.id;
+  document.getElementById('emp-role').value  = e.role || '';
+  document.getElementById('emp-email').value = e.email || '';
+  openModal('emp-modal');
+}
+
+async function saveEmployee() {
+  const name  = document.getElementById('emp-name').value.trim();
+  const id    = document.getElementById('emp-id').value.trim();
+  const role  = document.getElementById('emp-role').value.trim();
+  const email = document.getElementById('emp-email').value.trim();
+  if (!name || !id) { showNotif('error', '⚠️', 'Datos incompletos', 'Nombre e ID son obligatorios'); return; }
+  const data = { id, name, role, email, updatedAt: serverTimestamp() };
+  try {
+    if (editingEmpId) {
+      await setDoc(doc(db, C_EMP, editingEmpId), data, { merge: true });
+      showNotif('success', '✅', 'Actualizado en Firebase', name);
+    } else {
+      if (employees.find(e => e.id === id)) { showNotif('error', '⚠️', 'ID duplicado', 'Ya existe ese ID'); return; }
+      await setDoc(doc(db, C_EMP, id), { ...data, createdAt: serverTimestamp() });
+      showNotif('success', '🔥', 'Guardado en Firebase', name);
+    }
+    closeModal('emp-modal');
+  } catch (e) { showNotif('error', '🔥', 'Error', e.message); }
+}
+
+async function deleteEmployee(fid) {
+  if (!confirm('¿Eliminar este empleado de Firebase?')) return;
+  try { await deleteDoc(doc(db, C_EMP, fid)); showNotif('success', '🗑️', 'Eliminado de Firebase', ''); }
+  catch (e) { showNotif('error', '🔥', 'Error', e.message); }
+}
+
+// ── QR ────────────────────────────────────────────────────
+function showQR(empId) {
+  const e = employees.find(x => x.id === empId); if (!e) return;
+  document.getElementById('modal-qr-content').innerHTML = `
+    <div class="qr-container"><div id="qr-code-canvas"></div>
+    <div class="qr-label">${e.name}<br><span style="font-family:monospace;font-size:10px;color:#666">${e.id}</span></div></div>
+    <button class="btn btn-secondary" onclick="downloadQR('${e.id}','${e.name.replace(/'/g, '')}')"><span>⬇️</span>Descargar QR</button>`;
+  openModal('qr-modal');
+  setTimeout(() => {
+    new QRCode(document.getElementById('qr-code-canvas'), {
+      text: JSON.stringify({ id: e.id, name: e.name }),
+      width: 200, height: 200,
+      colorDark: '#000', colorLight: '#fff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  }, 100);
+}
+
+function downloadQR(id, name) {
+  const c = document.querySelector('#qr-code-canvas canvas'); if (!c) return;
+  const a = document.createElement('a');
+  a.download = `QR_${id}_${name.replace(/\s+/g, '_')}.png`;
+  a.href = c.toDataURL('image/png'); a.click();
+}
+
+// ── REPORTS ───────────────────────────────────────────────
+async function generateReport() {
+  const type = document.getElementById('report-type').value;
+  const now  = new Date();
+  let s, e;
+  e = now.toISOString().split('T')[0];
+  if (type === 'today')       { s = e; }
+  else if (type === 'week')   { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); s = d.toISOString().split('T')[0]; }
+  else if (type === 'month')  { s = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`; }
+  else {
+    s = document.getElementById('date-from').value;
+    e = document.getElementById('date-to').value;
+    if (!s || !e) { showNotif('error', '⚠️', 'Selecciona fechas', ''); return; }
+  }
+  const out = document.getElementById('report-output');
+  out.innerHTML = `<div class="card"><div class="skeleton"></div><div class="skeleton"></div></div>`;
+  try {
+    const q    = query(collection(db, C_REC), where('date', '>=', s), where('date', '<=', e));
+    const snap = await getDocs(q);
+    const data = snap.docs.map(d => d.data());
+    if (!data.length) {
+      out.innerHTML = `<div class="card"><div class="empty-state"><div class="es-icon">📊</div><p>Sin registros en este período</p></div></div>`;
+      return;
+    }
+    const byEmp = {};
+    data.forEach(r => {
+      if (!byEmp[r.empId]) byEmp[r.empId] = { name: r.empName, recs: [] };
+      byEmp[r.empId].recs.push(r);
+    });
+    out.innerHTML = `<div class="card">
+      <div class="card-title">📊 Firebase — ${s === e ? 'Hoy' : s + ' → ' + e}</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-value text-accent">${data.filter(r => r.entryTime).length}</div><div class="stat-label">Registros</div></div>
+        <div class="stat-card"><div class="stat-value text-yellow">${data.filter(r => r.status === 'Tardanza').length}</div><div class="stat-label">Tardanzas</div></div>
+      </div>
+      ${Object.entries(byEmp).map(([id, d]) => `
+        <div class="divider"></div>
+        <div class="fw-bold" style="margin-bottom:8px">${d.name} <span class="text-dim font-mono" style="font-size:11px">${id}</span></div>
+        ${d.recs.sort((a, b) => a.date.localeCompare(b.date)).map(r => `
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">
+            <span class="text-dim">${r.date}</span>
+            <span>E: <span class="text-green">${r.entryTime || '—'}</span></span>
+            <span>S: <span class="text-red">${r.exitTime || '—'}</span></span>
+            <span class="font-mono text-accent">${r.hoursWorked || '—'}</span>
+          </div>`).join('')}`).join('')}
+    </div>`;
+  } catch (err) { out.innerHTML = `<div class="card"><p class="text-red">Error Firebase: ${err.message}</p></div>`; }
+}
+
+async function exportCSV() {
+  try {
+    const snap = await getDocs(collection(db, C_REC));
+    const all  = snap.docs.map(d => d.data());
+    if (!all.length) { showNotif('error', '⚠️', 'Sin datos', ''); return; }
+    const hdr  = ['Nombre', 'ID', 'Fecha', 'Entrada', 'Salida', 'Horas', 'Estado', 'Email'];
+    const rows = all.map(r => [r.empName, r.empId, r.date, r.entryTime || '', r.exitTime || '', r.hoursWorked || '', r.status || '', r.empEmail || '']);
+    const csv  = [hdr, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }));
+    a.download = `asistencia_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    showNotif('success', '✅', 'CSV exportado desde Firebase', '');
+  } catch (e) { showNotif('error', '🔥', 'Error', e.message); }
+}
+
+function exportToEmail() {
+  if (!cfg.hrEmail) { showNotif('error', '📧', 'Sin email', 'Configura en ⚙️'); openModal('config-modal'); return; }
+  const t = new Date().toISOString().split('T')[0];
+  let body = `Reporte Asistencia — ${t}\nTotal: ${records.length}\n\n`;
+  records.forEach(r => { body += `${r.empName} (${r.empId})\n  E: ${r.entryTime || '—'} | S: ${r.exitTime || '—'} | ${r.hoursWorked || '—'} | ${r.status || ''}\n\n`; });
+  window.open(`mailto:${cfg.hrEmail}?subject=Reporte Asistencia ${t}&body=${encodeURIComponent(body)}`);
+  showNotif('success', '📧', 'Abriendo correo', `→ ${cfg.hrEmail}`);
+}
+
+// ── CONFIG ────────────────────────────────────────────────
+async function loadConfig() {
+  try {
+    const snap = await getDoc(doc(db, C_CONF, 'general'));
+    if (snap.exists()) {
+      cfg = { ...cfg, ...snap.data() };
+      if (cfg.hrEmail) document.getElementById('hr-email').value = cfg.hrEmail;
+    }
+  } catch {}
+}
+
+async function saveHREmail() {
+  cfg.hrEmail = document.getElementById('hr-email').value.trim();
+  try {
+    await setDoc(doc(db, C_CONF, 'general'), { hrEmail: cfg.hrEmail }, { merge: true });
+    showNotif('success', '📧', 'Email guardado en Firebase', cfg.hrEmail);
+  } catch (e) { showNotif('error', '🔥', 'Error', e.message); }
+}
+
+// ── MODALS + NOTIFS ───────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+let notifT;
+function showNotif(type, icon, title, sub) {
+  const el = document.getElementById('notification');
+  document.getElementById('notif-icon').textContent  = icon;
+  document.getElementById('notif-title').textContent = title;
+  document.getElementById('notif-sub').textContent   = sub;
+  el.className = `notification ${type} show`;
+  clearTimeout(notifT);
+  notifT = setTimeout(() => el.classList.remove('show'), 4500);
+}
+</script>
+</body>
+</html>
